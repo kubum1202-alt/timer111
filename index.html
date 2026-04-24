@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Buds Pro Smart Timer</title>
+    <title>Buds Smart Timer</title>
     <style>
         :root {
             --bg-color: #0f172a;
@@ -38,7 +38,6 @@
         /* 메인 UI */
         .container { text-align: center; width: 90%; max-width: 400px; }
 
-        /* 시간 설정 영역 */
         .input-group {
             margin-bottom: 20px; display: flex; justify-content: center; align-items: center; gap: 10px;
         }
@@ -49,7 +48,6 @@
             color: white; border-radius: 10px; text-align: center;
         }
 
-        /* 타이머 디스플레이 - 클릭 가능 */
         .timer-display {
             font-size: 7rem; font-weight: 800; margin: 20px 0;
             cursor: pointer; transition: transform 0.1s;
@@ -63,8 +61,8 @@
             background: var(--card-bg); border: 1px solid #334155; margin-bottom: 10px;
         }
 
-        .running { color: var(--accent-color); border-color: var(--accent-color); box-shadow: 0 0 15px rgba(56, 189, 248, 0.3); }
-        .danger { color: var(--danger-color); border-color: var(--danger-color); animation: pulse 1s infinite; }
+        .running { color: var(--accent-color); border-color: var(--accent-color); }
+        .danger { color: var(--danger-color); border-color: var(--danger-color); animation: pulse 0.5s infinite; }
 
         @keyframes pulse {
             0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); }
@@ -76,36 +74,32 @@
 <body>
 
     <div id="overlay">
-        <h2 style="margin-bottom: 10px;">Buds 3 Pro Timer</h2>
-        <p style="color: #64748b; margin-bottom: 30px;">음성 및 버튼 권한을 활성화합니다.</p>
+        <h2 style="margin-bottom: 10px;">Buds Timer</h2>
+        <p style="color: #64748b; margin-bottom: 30px;">소리 및 버튼 권한을 활성화합니다.</p>
         <button id="start-btn">시작하기</button>
     </div>
 
     <div class="container">
         <div id="status" class="status-badge">대기 중</div>
         
-        <!-- 시간 설정 -->
         <div class="input-group" id="setting-ui">
             <input type="number" id="sec-input" value="60" min="1" max="3600">
             <span style="font-size: 1.5rem;">초 설정</span>
         </div>
 
-        <!-- 타이머 (터치 시 토글) -->
         <div id="timer" class="timer-display" onclick="toggleTimer()">60</div>
 
         <div class="hint">
-            줄기 <b>핀치</b> 또는 <b>화면 터치</b> 시 작동<br>
-            10초 전부터 음성 카운트다운 시작
+            이어폰 <b>버튼</b> 또는 <b>화면 터치</b> 시 작동<br>
+            5초 전부터 알림음 발생
         </div>
     </div>
 
-    <!-- 배경 유지용 무음 오디오 -->
     <audio id="silent-audio" loop>
         <source src="data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=" type="audio/wav">
     </audio>
 
     <script>
-        let initialSeconds = 60;
         let timeLeft = 60;
         let timerInterval = null;
         let isRunning = false;
@@ -117,17 +111,25 @@
         const silentAudio = document.getElementById('silent-audio');
         const overlay = document.getElementById('overlay');
 
-        // 음성 합성 (TTS) 설정
-        const synth = window.speechSynthesis;
-        function speak(text) {
-            if (synth.speaking) synth.cancel();
-            const utter = new SpeechSynthesisUtterance(text);
-            utter.lang = 'ko-KR';
-            utter.rate = 1.2;
-            synth.speak(utter);
+        // Web Audio API를 이용한 '삐' 소리 생성 함수
+        let audioCtx = null;
+        function playBeep(duration, frequency, volume = 0.2) {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            oscillator.type = 'sine';
+            oscillator.frequency.value = frequency; 
+            gainNode.gain.setValueAtTime(volume, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + duration);
         }
 
-        // 입력값 변경 시 타이머 즉시 반영
         secInput.addEventListener('input', () => {
             if (!isRunning) {
                 timeLeft = parseInt(secInput.value) || 0;
@@ -142,16 +144,12 @@
 
         function startTimer() {
             if (isRunning) return;
-            
-            // 종료 상태에서 다시 시작 시 리셋
-            if (timeLeft <= 0) {
-                timeLeft = parseInt(secInput.value) || 60;
-            }
+            if (timeLeft <= 0) timeLeft = parseInt(secInput.value) || 60;
 
             isRunning = true;
             statusBadge.textContent = "실행 중";
             statusBadge.className = "status-badge running";
-            settingUi.style.visibility = "hidden"; // 실행 중엔 설정 숨김
+            settingUi.style.visibility = "hidden";
             
             silentAudio.play();
             updateMediaSession('playing');
@@ -160,10 +158,10 @@
                 timeLeft--;
                 timerDisplay.textContent = timeLeft;
 
-                // 10초 이하일 때 음성 카운트다운
-                if (timeLeft <= 10 && timeLeft > 0) {
+                // 5초 전부터 1초 전까지 짧은 삐 소리 (880Hz)
+                if (timeLeft <= 5 && timeLeft > 0) {
                     statusBadge.className = "status-badge danger";
-                    speak(timeLeft.toString());
+                    playBeep(0.1, 880); 
                 }
 
                 if (timeLeft <= 0) {
@@ -187,19 +185,21 @@
             statusBadge.textContent = "종료됨";
             statusBadge.className = "status-badge";
             settingUi.style.visibility = "visible";
-            speak("타이머가 종료되었습니다.");
+            
+            // 종료 시 1초간 긴 삐 소리 (440Hz)
+            playBeep(1.0, 440, 0.3);
+            
             if (navigator.vibrate) navigator.vibrate([500, 200, 500]);
             updateMediaSession('paused');
         }
 
-        // 미디어 세션 (버즈 신호 수신)
         function setupMediaSession() {
             if ('mediaSession' in navigator) {
                 navigator.mediaSession.setActionHandler('play', toggleTimer);
                 navigator.mediaSession.setActionHandler('pause', toggleTimer);
                 navigator.mediaSession.metadata = new MediaMetadata({
                     title: '스마트 타이머',
-                    artist: 'Buds 3 Pro 컨트롤',
+                    artist: '이어폰 버튼 제어',
                     album: 'Timer'
                 });
             }
@@ -211,13 +211,11 @@
             }
         }
 
-        // 시작 버튼
         document.getElementById('start-btn').addEventListener('click', () => {
             overlay.style.display = 'none';
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             silentAudio.play().then(() => {
                 setupMediaSession();
-                // 첫 클릭 시 TTS 권한 획득을 위해 무음 출력
-                speak(""); 
             });
         });
     </script>
