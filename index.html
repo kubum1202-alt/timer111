@@ -2,166 +2,169 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Buds Pro Timer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Buds Pro Smart Timer</title>
     <style>
         :root {
-            --bg-color: #121212;
-            --text-color: #ffffff;
-            --accent-color: #00e676;
-            --pause-color: #ff5252;
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --accent-color: #38bdf8;
+            --text-color: #f8fafc;
+            --danger-color: #f43f5e;
         }
 
         body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
+            margin: 0; padding: 0; width: 100%; height: 100%;
             background-color: var(--bg-color);
             color: var(--text-color);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
-            user-select: none;
+            font-family: 'Pretendard', -apple-system, sans-serif;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            overflow: hidden; touch-action: manipulation;
         }
 
-        /* 초기 진입 오버레이 */
+        /* 시작 오버레이 */
         #overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: var(--bg-color);
-            z-index: 100;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            padding: 20px;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg-color); z-index: 1000;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
         }
 
         #start-btn {
-            padding: 20px 40px;
-            font-size: 1.5rem;
-            background-color: var(--accent-color);
-            border: none;
-            border-radius: 50px;
-            color: #000;
-            font-weight: bold;
-            cursor: pointer;
-            box-shadow: 0 0 20px rgba(0, 230, 118, 0.4);
+            padding: 20px 50px; font-size: 1.5rem; font-weight: bold;
+            background: var(--accent-color); border: none; border-radius: 15px;
+            color: #0f172a; cursor: pointer;
         }
 
-        /* 메인 컨테이너 */
-        .container {
-            text-align: center;
+        /* 메인 UI */
+        .container { text-align: center; width: 90%; max-width: 400px; }
+
+        /* 시간 설정 영역 */
+        .input-group {
+            margin-bottom: 20px; display: flex; justify-content: center; align-items: center; gap: 10px;
         }
 
+        input[type="number"] {
+            width: 100px; padding: 10px; font-size: 1.5rem;
+            background: var(--card-bg); border: 2px solid #334155;
+            color: white; border-radius: 10px; text-align: center;
+        }
+
+        /* 타이머 디스플레이 - 클릭 가능 */
         .timer-display {
-            font-size: 8rem;
-            font-weight: 800;
+            font-size: 7rem; font-weight: 800; margin: 20px 0;
+            cursor: pointer; transition: transform 0.1s;
             font-variant-numeric: tabular-nums;
-            margin-bottom: 10px;
         }
+
+        .timer-display:active { transform: scale(0.95); }
 
         .status-badge {
-            display: inline-block;
-            padding: 8px 20px;
-            border-radius: 20px;
-            background: #333;
-            font-size: 1.2rem;
-            font-weight: 500;
-            transition: all 0.3s ease;
+            padding: 8px 20px; border-radius: 30px; font-size: 1rem;
+            background: var(--card-bg); border: 1px solid #334155; margin-bottom: 10px;
         }
 
-        .status-running { color: var(--accent-color); border: 1px solid var(--accent-color); }
-        .status-paused { color: var(--pause-color); border: 1px solid var(--pause-color); }
-        .status-ready { color: #aaa; border: 1px solid #aaa; }
+        .running { color: var(--accent-color); border-color: var(--accent-color); box-shadow: 0 0 15px rgba(56, 189, 248, 0.3); }
+        .danger { color: var(--danger-color); border-color: var(--danger-color); animation: pulse 1s infinite; }
 
-        .guide-text {
-            margin-top: 40px;
-            font-size: 0.9rem;
-            color: #666;
-            line-height: 1.5;
+        @keyframes pulse {
+            0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); }
         }
+
+        .hint { color: #64748b; font-size: 0.9rem; margin-top: 30px; line-height: 1.6; }
     </style>
 </head>
 <body>
 
-    <!-- 브라우저 정책 해결을 위한 시작 화면 -->
     <div id="overlay">
-        <h1>Buds Timer</h1>
-        <p style="margin-bottom: 30px; color: #aaa;">버즈 3 Pro 제어권을 활성화하기 위해<br>아래 버튼을 눌러주세요.</p>
-        <button id="start-btn">앱 시작하기</button>
+        <h2 style="margin-bottom: 10px;">Buds 3 Pro Timer</h2>
+        <p style="color: #64748b; margin-bottom: 30px;">음성 및 버튼 권한을 활성화합니다.</p>
+        <button id="start-btn">시작하기</button>
     </div>
 
     <div class="container">
-        <div id="status" class="status-badge status-ready">준비됨</div>
-        <div id="timer" class="timer-display">01:00</div>
-        <div class="guide-text">
-            버즈 3 Pro의 줄기(Stem) 부분을<br>
-            <strong>한 번 핀치(Pinch)</strong>하여 타이머를 시작/정지하세요.
+        <div id="status" class="status-badge">대기 중</div>
+        
+        <!-- 시간 설정 -->
+        <div class="input-group" id="setting-ui">
+            <input type="number" id="sec-input" value="60" min="1" max="3600">
+            <span style="font-size: 1.5rem;">초 설정</span>
+        </div>
+
+        <!-- 타이머 (터치 시 토글) -->
+        <div id="timer" class="timer-display" onclick="toggleTimer()">60</div>
+
+        <div class="hint">
+            줄기 <b>핀치</b> 또는 <b>화면 터치</b> 시 작동<br>
+            10초 전부터 음성 카운트다운 시작
         </div>
     </div>
 
-    <!-- 오디오 요소들 -->
-    <!-- 무음 트랙 (MediaSession 유지용) -->
+    <!-- 배경 유지용 무음 오디오 -->
     <audio id="silent-audio" loop>
         <source src="data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=" type="audio/wav">
     </audio>
-    <!-- 알람 소리 -->
-    <audio id="alarm-audio">
-        <source src="https://actions.google.com/google-ads/sounds/redalert.mp3" type="audio/mpeg">
-    </audio>
 
     <script>
+        let initialSeconds = 60;
         let timeLeft = 60;
         let timerInterval = null;
         let isRunning = false;
-
+        
         const timerDisplay = document.getElementById('timer');
         const statusBadge = document.getElementById('status');
+        const secInput = document.getElementById('sec-input');
+        const settingUi = document.getElementById('setting-ui');
         const silentAudio = document.getElementById('silent-audio');
-        const alarmAudio = document.getElementById('alarm-audio');
         const overlay = document.getElementById('overlay');
-        const startBtn = document.getElementById('start-btn');
 
-        // 타이머 업데이트 함수
-        function updateDisplay() {
-            const mins = Math.floor(timeLeft / 60);
-            const secs = timeLeft % 60;
-            timerDisplay.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        // 음성 합성 (TTS) 설정
+        const synth = window.speechSynthesis;
+        function speak(text) {
+            if (synth.speaking) synth.cancel();
+            const utter = new SpeechSynthesisUtterance(text);
+            utter.lang = 'ko-KR';
+            utter.rate = 1.2;
+            synth.speak(utter);
         }
 
-        // 타이머 시작/정지 토글 로직
-        function toggleTimer() {
-            if (isRunning) {
-                pauseTimer();
-            } else {
-                startTimer();
+        // 입력값 변경 시 타이머 즉시 반영
+        secInput.addEventListener('input', () => {
+            if (!isRunning) {
+                timeLeft = parseInt(secInput.value) || 0;
+                timerDisplay.textContent = timeLeft;
             }
+        });
+
+        function toggleTimer() {
+            if (isRunning) pauseTimer();
+            else startTimer();
         }
 
         function startTimer() {
             if (isRunning) return;
             
-            // 타이머가 종료된 상태에서 다시 시작하면 리셋
-            if (timeLeft <= 0) timeLeft = 60;
+            // 종료 상태에서 다시 시작 시 리셋
+            if (timeLeft <= 0) {
+                timeLeft = parseInt(secInput.value) || 60;
+            }
 
             isRunning = true;
             statusBadge.textContent = "실행 중";
-            statusBadge.className = "status-badge status-running";
+            statusBadge.className = "status-badge running";
+            settingUi.style.visibility = "hidden"; // 실행 중엔 설정 숨김
             
-            // 미디어 세션을 '재생' 상태로 만들어 버즈 신호를 받음
             silentAudio.play();
+            updateMediaSession('playing');
 
             timerInterval = setInterval(() => {
                 timeLeft--;
-                updateDisplay();
+                timerDisplay.textContent = timeLeft;
+
+                // 10초 이하일 때 음성 카운트다운
+                if (timeLeft <= 10 && timeLeft > 0) {
+                    statusBadge.className = "status-badge danger";
+                    speak(timeLeft.toString());
+                }
 
                 if (timeLeft <= 0) {
                     clearInterval(timerInterval);
@@ -173,50 +176,49 @@
         function pauseTimer() {
             isRunning = false;
             statusBadge.textContent = "일시정지";
-            statusBadge.className = "status-badge status-paused";
+            statusBadge.className = "status-badge";
+            settingUi.style.visibility = "visible";
             clearInterval(timerInterval);
-            // 버즈 신호를 계속 받기 위해 오디오는 정지하지 않거나 미디어세션 유지
+            updateMediaSession('paused');
         }
 
         function completeTimer() {
             isRunning = false;
-            statusBadge.textContent = "종료!";
-            statusBadge.className = "status-badge status-ready";
-            alarmAudio.play();
-            
-            // 진동 (지원되는 모바일 기기)
+            statusBadge.textContent = "종료됨";
+            statusBadge.className = "status-badge";
+            settingUi.style.visibility = "visible";
+            speak("타이머가 종료되었습니다.");
             if (navigator.vibrate) navigator.vibrate([500, 200, 500]);
+            updateMediaSession('paused');
         }
 
-        // 핵심: Media Session API 설정
+        // 미디어 세션 (버즈 신호 수신)
         function setupMediaSession() {
             if ('mediaSession' in navigator) {
-                // 재생/일시정지 신호를 모두 하나의 토글 함수로 연결
-                // 버즈의 핀치는 상황에 따라 play 또는 pause 이벤트를 보냄
-                navigator.mediaSession.setActionHandler('play', () => {
-                    toggleTimer();
-                });
-                navigator.mediaSession.setActionHandler('pause', () => {
-                    toggleTimer();
-                });
-
-                // 미디어 정보 표시 (알림창에 나타남)
+                navigator.mediaSession.setActionHandler('play', toggleTimer);
+                navigator.mediaSession.setActionHandler('pause', toggleTimer);
                 navigator.mediaSession.metadata = new MediaMetadata({
-                    title: '1분 타이머',
-                    artist: 'Buds 3 Pro Controller',
-                    album: 'Utility'
+                    title: '스마트 타이머',
+                    artist: 'Buds 3 Pro 컨트롤',
+                    album: 'Timer'
                 });
             }
         }
 
-        // 시작 버튼 클릭 시 (사용자 상호작용 강제)
-        startBtn.addEventListener('click', () => {
+        function updateMediaSession(state) {
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.playbackState = state;
+            }
+        }
+
+        // 시작 버튼
+        document.getElementById('start-btn').addEventListener('click', () => {
             overlay.style.display = 'none';
-            
-            // 오디오 객체 초기화 (iOS/Android 잠금 해제)
             silentAudio.play().then(() => {
                 setupMediaSession();
-            }).catch(e => console.error("Audio init error:", e));
+                // 첫 클릭 시 TTS 권한 획득을 위해 무음 출력
+                speak(""); 
+            });
         });
     </script>
 </body>
